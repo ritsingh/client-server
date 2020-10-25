@@ -1,0 +1,16 @@
+{
+  "name": "Client-Server",
+  "version": "1.0.0",
+  "description": "The project is consist for a server, console client & web client, where the console & web client can interact with the server.",
+  "main": "server.js",
+  "scripts": {
+    "server": "node server,js",
+    "client": "node client.js",
+  },
+  "author": "Ritesh Singh",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.16.4",
+    "socket.io": "^2.1.1"
+  }
+}

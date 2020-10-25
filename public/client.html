@@ -1,0 +1,142 @@
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
+
+<style>
+    input{
+        width: 100%;
+        height: 35px;
+    }
+
+    #greeting{
+        font-style: italic;
+        color: #0052a2;
+    }
+    #score, #timeLeft, #instruction{
+        font-style: italic;
+        font-size: 20px;
+        font-weight: bolder;
+        color: #000080;
+    }
+    #message-form{
+        margin-bottom: 8%;
+    }
+    #messages{
+        font-style: italic;
+        font-size: 20px;
+        font-weight: bolder;
+    }
+    .success-message{
+        color: #008000;
+    }
+    .error-message{
+        color: #FF0000;
+    }
+</style>
+
+<div class="container">
+    <div class="row">
+        <div class="col-sm-12">
+            <pre id="info"> 
+        </div>
+        <div class="col-sm-12">
+            <label id="greeting"></label> 
+        </div>
+        <div class="col-sm-12">
+            <div class="col-sm-6">
+                <label id="score"></label> 
+            </div>
+            <div class="col-sm-6 text-right">
+                <label id="timeLeft"></label> 
+            </div>
+            <form id="message-form">
+                <div class="col-sm-12">
+                    <input id="user-message" type="text" placeholder="Enter your message" onkeyup="triggerChange(this)" />
+                </div>
+            </form>
+            <div class="col-sm-12">
+                <label id="instruction"></label> 
+            </div>
+            <div class="col-sm-12">
+                <label id="messages"></label> 
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.1.1/socket.io.js"></script>
+<script>
+
+// Connect to server
+const socket = io('http://localhost:9000');
+// Local declarations
+let timeInterval;
+let timeLeft = 0;
+let instructionKey;
+let missedKeyCount = 0;
+
+// Method to show time interval
+const counter = (msg) => {
+  return setInterval(() => {
+    document.querySelector('#messages').classList.remove("success-message");  
+    document.querySelector('#messages').classList.add("error-message");  
+    if(timeLeft === 0){
+      ++missedKeyCount;
+      if(missedKeyCount === 1){
+        document.querySelector('#messages').innerHTML = `Timedout: ${msg}`;
+      }
+      let shouldExit = missedKeyCount >= 3 ? 1 : 0;
+      socket.emit('timeout', shouldExit);
+      if(shouldExit){
+        document.querySelector('#messages').innerHTML = `Either You or Server is not interacting. Please try again.`;        
+      }
+    } else {
+      --timeLeft;
+      document.querySelector('#timeLeft').innerHTML = `Time Left: ${timeLeft}`;
+    }
+  }, 1000);
+}
+
+// Show set of instruction on connection establishment
+socket.on('connect', () => {
+    document.querySelector('#info').innerHTML = `Instruction:\n 1: Presss the key which is displayed on your screen with in 10 seconds to score max. \n 2: The score of 10 indicates winner. \n 3: The score of -3 indicates Looser. \n 4: To restart the game at any point of time \'Realod The Page\``;    
+})
+
+// Greet connected client
+socket.on('welcome', (data) => {
+  document.querySelector('#greeting').innerHTML = data;
+});
+
+// Listen to the instruction from server
+socket.on('newKeyPressed', (data) => {
+  clearTimeout(timeInterval); 
+  document.querySelector('#instruction').innerHTML = `New instruction from server is: ${data.key} `;
+  document.querySelector('#score').innerHTML = `Current Score: ${data.score}`;
+  instructionKey = data.key;
+  timeLeft = data.timeLeft;
+  timeInterval = counter('You took to long to respond to the server instruction.');
+})
+
+// Display result
+socket.on('result', function (data) {
+  socket.emit('timeout');
+  clearTimeout(timeInterval);
+  document.querySelector('#instruction').innerHTML = ``;
+  document.querySelector('#score').innerHTML = `Current Score: ${data.score}`;
+  document.querySelector('#messages').innerHTML = `Result: ${data.result}`;  
+  document.querySelector('#messages').innerHTML = `Result: ${data.result}`;  
+  document.querySelector('#messages').classList.remove("error-message");  
+  document.querySelector('#messages').classList.add("success-message");  
+});
+
+// Pass the response to server 
+const triggerChange = (e) => {
+    document.querySelector('#instruction').innerHTML = `You pressed the "${e.value}" key`;
+    missedKeyCount = 0;
+    clearTimeout(timeInterval); 
+    timeLeft = 10;
+    timeInterval = counter('There is no instruction shared by the server!!!');
+    socket.send({ reply: e.value });
+    e.value = '';
+}
+
+</script>
